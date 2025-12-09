@@ -928,10 +928,23 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`raveapp`@`%` PROCEDURE `PCD_COMPRA_FinalizarCompra`(IN p_idCompra varchar(36), IN p_cdMedioPago int)
     MODIFIES SQL DATA
-BEGIN
+main_block:BEGIN
+	
+	DECLARE p_existe int;
 
     start transaction;
    
+	SELECT count(1)
+	INTO p_existe
+	FROM tblcompra c
+	WHERE c.idcompra = p_idCompra
+	AND c.cdestado = 1;
+
+	IF p_existe > 0 THEN
+		ROLLBACK;
+		LEAVE main_block;
+	END IF;
+
     insert into tblcobranza (idcompra, ammontocancelado, cdmediopago)
     select cc.idcompra, cc.ammonto, p_cdMedioPago
     from tblcompra cc
@@ -951,7 +964,7 @@ BEGIN
    from tblentrada t
    where t.idcompra  = p_idCompra;
   
-END ;;
+END main_block ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -1751,7 +1764,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`raveapp`@`%` PROCEDURE `PCD_ENTRADAS_SetQREntrada`(IN p_idEntrada varchar(36), IN p_mdQr varchar(36))
+CREATE DEFINER=`raveapp`@`%` PROCEDURE `PCD_ENTRADAS_SetQREntrada`(IN p_idEntrada varchar(36), IN p_mdQr varchar(36), OUT p_ok int)
     MODIFIES SQL DATA
 BEGIN
 
@@ -1759,9 +1772,10 @@ BEGIN
 
     update tblentrada ee
     set ee.mdqr = p_mdQr
-    where ee.identrada = p_idEntrada
-   	AND ee.cdestado != 4;
-
+    where ee.identrada = p_idEntrada;
+	
+    SET p_ok = ROW_COUNT();
+   
     commit;
 
 END ;;
@@ -4366,4 +4380,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-09  2:26:40
+-- Dump completed on 2025-12-09 23:41:57
